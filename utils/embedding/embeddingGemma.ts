@@ -16,7 +16,6 @@ export const FULL_DIMENSIONS = 768;
 export const DEFAULT_BATCH_SIZE = 16;
 
 const QUERY_PREFIX = 'task: search result | query: ';
-const DOCUMENT_PREFIX = 'title: {title} | text: ';
 
 export function buildPrefixedText(
   text: string,
@@ -25,7 +24,7 @@ export function buildPrefixedText(
   if (task === 'query') {
     return `${QUERY_PREFIX}${text}`;
   }
-  return `${DOCUMENT_PREFIX.replace('{title}', title)}${text}`;
+  return `title: ${title} | text: ${text}`;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -61,17 +60,26 @@ export class EmbeddingGemmaProvider implements EmbeddingProvider {
   private loadingPromise: Promise<void> | undefined;
 
   constructor(options: EmbeddingProviderOptions = {}) {
+    const dimensions = options.dimensions ?? FULL_DIMENSIONS;
+    if (dimensions <= 0 || dimensions > FULL_DIMENSIONS) {
+      throw new RangeError(`dimensions must be between 1 and ${FULL_DIMENSIONS}, got ${dimensions}`);
+    }
     this.options = options;
-    this.dimensions = options.dimensions ?? FULL_DIMENSIONS;
+    this.dimensions = dimensions;
   }
 
   async init(): Promise<void> {
     if (this.tokenizer && this.model) return;
     if (!this.loadingPromise) {
-      this.loadingPromise = loadModel(this.options).then(({ tokenizer, model }) => {
-        this.tokenizer = tokenizer;
-        this.model = model;
-      });
+      this.loadingPromise = loadModel(this.options)
+        .then(({ tokenizer, model }) => {
+          this.tokenizer = tokenizer;
+          this.model = model;
+        })
+        .catch((error: unknown) => {
+          this.loadingPromise = undefined;
+          throw error;
+        });
     }
     await this.loadingPromise;
   }
@@ -82,6 +90,9 @@ export class EmbeddingGemmaProvider implements EmbeddingProvider {
       throw new Error('EmbeddingGemmaProvider failed to initialize');
     }
     const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+    if (batchSize <= 0) {
+      throw new RangeError(`batchSize must be a positive integer, got ${batchSize}`);
+    }
     const result: number[][] = [];
     for (const batch of chunk(texts, batchSize)) {
       const prefixed = batch.map((text) => buildPrefixedText(text, options));
@@ -110,12 +121,29 @@ export class EmbeddingGemmaProvider implements EmbeddingProvider {
 }
 
 let sharedProvider: EmbeddingGemmaProvider | undefined;
+let sharedOptions: EmbeddingProviderOptions | undefined;
+
+function optionsMatch(
+  a: EmbeddingProviderOptions | undefined,
+  b: EmbeddingProviderOptions | undefined,
+): boolean {
+  return (
+    (a?.dtype ?? 'q4') === (b?.dtype ?? 'q4') &&
+    a?.device === b?.device &&
+    (a?.dimensions ?? FULL_DIMENSIONS) === (b?.dimensions ?? FULL_DIMENSIONS)
+  );
+}
 
 export function getEmbeddingProvider(
   options?: EmbeddingProviderOptions,
 ): EmbeddingGemmaProvider {
   if (!sharedProvider) {
     sharedProvider = new EmbeddingGemmaProvider(options);
+    sharedOptions = options;
+    return sharedProvider;
+  }
+  if (!optionsMatch(sharedOptions, options)) {
+    throw new Error('getEmbeddingProvider was already initialized with different options');
   }
   return sharedProvider;
 }

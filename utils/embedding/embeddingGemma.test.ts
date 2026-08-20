@@ -71,6 +71,12 @@ describe('buildPrefixedText', () => {
       'title: 見出し | text: 本文',
     );
   });
+
+  it('titleに$&や$$が含まれても特殊な置換パターンとして解釈しない', () => {
+    expect(buildPrefixedText('本文', { task: 'document', title: '$& off $$ sale' })).toBe(
+      'title: $& off $$ sale | text: 本文',
+    );
+  });
 });
 
 describe('EmbeddingGemmaProvider', () => {
@@ -111,5 +117,59 @@ describe('EmbeddingGemmaProvider', () => {
     expect(embedding).toHaveLength(2);
     const norm = Math.sqrt((embedding ?? []).reduce((sum, value) => sum + value * value, 0));
     expect(norm).toBeCloseTo(1);
+  });
+
+  it('dimensionsが0以下または最大次元数を超える場合はコンストラクタで例外を投げる', () => {
+    expect(() => new EmbeddingGemmaProvider({ dimensions: 0 })).toThrow(RangeError);
+    expect(() => new EmbeddingGemmaProvider({ dimensions: -1 })).toThrow(RangeError);
+    expect(() => new EmbeddingGemmaProvider({ dimensions: 769 })).toThrow(RangeError);
+  });
+
+  it('batchSizeが0以下なら例外を投げる', async () => {
+    const provider = new EmbeddingGemmaProvider();
+
+    await expect(
+      provider.embed(['hello'], { task: 'query', batchSize: 0 }),
+    ).rejects.toThrow(RangeError);
+  });
+
+  it('init()が一度失敗しても、次回のinit()で再試行できる', async () => {
+    autoTokenizerFromPretrained.mockRejectedValueOnce(new Error('network error'));
+    const provider = new EmbeddingGemmaProvider();
+
+    await expect(provider.init()).rejects.toThrow('network error');
+    await expect(provider.init()).resolves.toBeUndefined();
+
+    expect(autoTokenizerFromPretrained).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getEmbeddingProvider', () => {
+  it('引数なしで複数回呼んでも同じインスタンスを返す', async () => {
+    vi.resetModules();
+    const { getEmbeddingProvider } = await import('./embeddingGemma');
+
+    expect(getEmbeddingProvider()).toBe(getEmbeddingProvider());
+  });
+
+  it('同じoptionsで呼べば同じインスタンスを返す', async () => {
+    vi.resetModules();
+    const { getEmbeddingProvider } = await import('./embeddingGemma');
+
+    const first = getEmbeddingProvider({ dimensions: 256 });
+    const second = getEmbeddingProvider({ dimensions: 256 });
+
+    expect(first).toBe(second);
+  });
+
+  it('最初と異なるoptionsで呼ぶと例外を投げる', async () => {
+    vi.resetModules();
+    const { getEmbeddingProvider } = await import('./embeddingGemma');
+
+    getEmbeddingProvider({ dimensions: 768 });
+
+    expect(() => getEmbeddingProvider({ dimensions: 128 })).toThrow(
+      'getEmbeddingProvider was already initialized with different options',
+    );
   });
 });

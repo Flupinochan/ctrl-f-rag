@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { cosineSimilarity } from '../similarity';
 import { EmbeddingGemmaProvider, FULL_DIMENSIONS } from './embeddingGemma';
 
+// 初回に約200MBのモデルダウンロードが発生するため、このファイルのテストだけ長めのtimeoutにする
+const MODEL_DOWNLOAD_TIMEOUT = 600_000;
+
 // 実モデル (約200MB) をダウンロードして検証するため、RUN_MODEL_TESTS=1指定時のみ実行する
 describe.skipIf(!process.env.RUN_MODEL_TESTS)('EmbeddingGemmaProvider (実モデル)', () => {
   it('正規化済みの768次元embeddingを生成する', async () => {
@@ -13,7 +16,7 @@ describe.skipIf(!process.env.RUN_MODEL_TESTS)('EmbeddingGemmaProvider (実モデ
     expect(norm).toBeCloseTo(1, 2);
 
     await provider.dispose();
-  });
+  }, MODEL_DOWNLOAD_TIMEOUT);
 
   it('意味的に最も近いdocumentを最上位にランクする (英語)', async () => {
     const provider = new EmbeddingGemmaProvider();
@@ -41,7 +44,7 @@ describe.skipIf(!process.env.RUN_MODEL_TESTS)('EmbeddingGemmaProvider (実モデ
     expect(scored[0]?.title).toBe('Mars');
 
     await provider.dispose();
-  });
+  }, MODEL_DOWNLOAD_TIMEOUT);
 
   it('意味的に最も近いdocumentを最上位にランクする (日本語)', async () => {
     const provider = new EmbeddingGemmaProvider();
@@ -69,5 +72,5 @@ describe.skipIf(!process.env.RUN_MODEL_TESTS)('EmbeddingGemmaProvider (実モデ
     expect(scored[0]?.title).toBe('火星');
 
     await provider.dispose();
-  });
+  }, MODEL_DOWNLOAD_TIMEOUT);
 });
