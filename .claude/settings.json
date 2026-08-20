@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(node -e 'process.stdout.write(JSON.parse(require(\"fs\").readFileSync(0,\"utf8\")).tool_input.file_path||\"\")'); case \"$f\" in *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR\" && bun run compile ;; esac"
+            "command": "f=$(node -e 'process.stdout.write(JSON.parse(require(\"fs\").readFileSync(0,\"utf8\")).tool_input.file_path||\"\")'); case \"$f\" in *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR\" && (bun run compile && bun run lint) || exit 2 ;; esac"
           }
         ]
       }
