@@ -41,12 +41,15 @@ Hugging Face上のライブラリ (transformers.js) / pipeline_tag / language / 
 |---|---|---|---|---|---|---|---|---|
 | Xenova/multilingual-e5-small | 118M | 384 | 100 | 512 | MIT | 118MB | 146k | 17 |
 | Xenova/paraphrase-multilingual-MiniLM-L12-v2 | 118M | 384 | 50 | 128 | Apache 2.0 | 118MB | 173k | 18 |
-| onnx-community/embeddinggemma-300m-ONNX | 308M | 768、MRLで128まで縮小可 | 100以上 | 未確認 | Apache 2.0 | 176MB (q4f16) 〜310MB (quantized) | 172.5k | 73 |
+| onnx-community/embeddinggemma-300m-ONNX | 308M | 768、MRLで128まで縮小可 | 100以上 | 未確認 | Apache 2.0 | 197MB (q4) 〜309MB (quantized) | 172.5k | 73 |
 
 **採用: onnx-community/embeddinggemma-300m-ONNX (仮決定、後で比較検証する)**
 
 Gemmaブランドとしての知名度を優先し採用する
 技術的な後押しとして、Google公式が「ブラウザで100%ローカル実行可能」と明言している唯一の候補である点、likesが73と他の多言語候補 (最大でも18) を大きく上回る点、MRL対応で次元数を柔軟に縮小できる点がある
+
+量子化はq4を既定とする
+モデルカードにfp16およびその派生 (q4f16等) は活性化関数が非対応と明記されているため候補から外した
 
 **prefix要件 (必須)**
 
