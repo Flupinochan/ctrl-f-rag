@@ -71,17 +71,20 @@ export class EmbeddingGemmaProvider implements EmbeddingProvider {
   async init(): Promise<void> {
     if (this.tokenizer && this.model) return;
     if (!this.loadingPromise) {
-      this.loadingPromise = loadModel(this.options)
-        .then(({ tokenizer, model }) => {
-          this.tokenizer = tokenizer;
-          this.model = model;
-        })
-        .catch((error: unknown) => {
-          this.loadingPromise = undefined;
-          throw error;
-        });
+      this.loadingPromise = this.loadOnce();
     }
     await this.loadingPromise;
+  }
+
+  private async loadOnce(): Promise<void> {
+    try {
+      const { tokenizer, model } = await loadModel(this.options);
+      this.tokenizer = tokenizer;
+      this.model = model;
+    } catch (error) {
+      this.loadingPromise = undefined;
+      throw error;
+    }
   }
 
   async embed(texts: string[], options: EmbedOptions): Promise<number[][]> {
